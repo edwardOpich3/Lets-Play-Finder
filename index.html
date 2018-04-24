@@ -5,6 +5,8 @@
         <meta charset="utf-8">
         <title>Project 3</title>
         <style>
+            @import url('https://fonts.googleapis.com/css?family=Do+Hyeon');
+
             body
             {
                 text-align: center;
@@ -13,6 +15,11 @@
             h1
             {
                 font-size: 64pt;
+            }
+
+            h1, h2
+            {
+                font-family: "Do Hyeon", sans-serif;
             }
         </style>
 
@@ -24,7 +31,7 @@
             var GB_URL = "https://www.giantbomb.com/api/search/?json_callback=gbSearch&format=jsonp&api_key=";
             var GB_KEY = "f57d683377deb02159063a9618aaef708731316e";
 
-            var YT_URL = "https://www.googleapis.com/youtube/v3/search/?callback=ytSearch&part=snippet&key=";
+            var YT_URL = "https://www.googleapis.com/youtube/v3/search/?callback=ytSearch&part=snippet&type=video&key=";
             var YT_KEY = "AIzaSyDrxICMCNru0ijt36QbU0fHkQ7AuVzfwOY";
 
             var value;
@@ -67,9 +74,9 @@
                 });
             }
             
+            // TODO: Follow D.R.Y!
             function getData2(){
                 // build up our URL string
-                debugger;
                 var url = YT_URL;
                 url += YT_KEY;
 
@@ -105,20 +112,21 @@
                 console.log("obj = " + obj);
                 console.log("obj stringified = " + JSON.stringify(obj));
 
-                document.querySelector("#content").innerHTML = "";
+                var myContent = document.querySelector("#content");
+                myContent.innerHTML = "";
                 
                 // if there's an error, print a message and return
                 if(obj.status_code != 1){
                     var status = obj.status_code;
                     var error = obj.error;
-                    document.querySelector("#content").innerHTML = "<h3><b>Error!</b></h3>" + "<p><i>" + status + "</i><p>" + "<p><i>" + error + "</i><p>";
+                    myContent.innerHTML = "<h3><b>Error!</b></h3>" + "<p><i>" + status + "</i><p>" + "<p><i>" + error + "</i><p>";
                     return; // Bail out
                 }
                 
                 // if there are no results, print a message and return
                 if(obj.results.length == 0){
                     var status = "No results found";
-                    document.querySelector("#content").innerHTML = "<p><i>" + status + "</i><p>" + "<p><i>";
+                    myContent.innerHTML = "<p><i>" + status + "</i><p>" + "<p><i>";
                     return; // Bail out
                 }
                 
@@ -130,10 +138,14 @@
                 var allGames = obj.results;
                 console.log("allGames.length = " + allGames.length);
 
-                var myContent = document.querySelector("#content");
+                var pElem = document.createElement("p");
+                var bElem = document.createElement("b");
 
-                myContent.innerHTML = "<p><b>" + obj.number_of_page_results + " out of " + obj.number_of_total_results + " results for '" + decodeURI(value) + "'</b></p>";
-                myContent.innerHTML += "<hr />";
+                bElem.innerHTML = obj.number_of_page_results + " out of " + obj.number_of_total_results + " results for '" + decodeURI(value) + "'";
+                pElem.appendChild(bElem);
+                myContent.appendChild(pElem);
+
+                myContent.appendChild(document.createElement("hr"));
                 
                 // loop through events here
                 for(var i = 0; i < allGames.length; i++){
@@ -141,22 +153,32 @@
                         continue;
                     }
 
+                    pElem = document.createElement("p");
+                    bElem = document.createElement("b");
+
                     if(allGames[i].name != null){
-                        myContent.innerHTML += "<p><b>" + allGames[i].name + "</b></p>";
+                        bElem.innerHTML = allGames[i].name;
                     }
                     else{
-                        myContent.innerHTML += "<p><b>Something</b></p>";
+                        bElem.innerHTML = "(Error: Name not found)";
                     }
 
+                    pElem.appendChild(bElem);
+                    myContent.appendChild(pElem);
+
                     if(allGames[i].image != null){
-                        myContent.innerHTML += "<img src='" + allGames[i].image.thumb_url + "' />";
+                        var imgElem = document.createElement("img");
+                        imgElem.setAttribute("src", allGames[i].image.thumb_url);
+                        myContent.appendChild(imgElem);
                     }
 
                     if(allGames[i].deck != null){
-                        myContent.innerHTML += "<p>" + allGames[i].deck + "</p>";
+                        pElem = document.createElement("p");
+                        pElem.innerHTML += allGames[i].deck;
+                        myContent.appendChild(pElem);
                     }
 
-                    if(allGames[i].developers != null){
+                    /*if(allGames[i].developers != null){
                         myContent.innerHTML += "<p><b>Developed by ";
 
                         for(var j = 0; j < allGames[i].developers.length; j++){
@@ -175,39 +197,118 @@
                     }
                     else{
                         myContent.innerHTML += "<p><b>Developed by some team</b></p>";
-                    }
+                    }*/
+
+                    pElem = document.createElement("p");
+                    bElem = document.createElement("b");
 
                     if(allGames[i].original_release_date != null){
-                        myContent.innerHTML += "<p><b>Released on " + parseDate(allGames[i].original_release_date) + "</b></p>";
+                        bElem.innerHTML += "Released on " + parseDate(allGames[i].original_release_date);
                     }
-                    else{
+                    /*else{
                         myContent.innerHTML += "<p><b>Released on some date</b></p>";
-                    }
+                    }*/
+
+                    pElem.appendChild(bElem);
+                    myContent.appendChild(pElem);
 
                     if(allGames[i].site_detail_url != null){
-                        myContent.innerHTML += "<a href='" + allGames[i].site_detail_url + "'>Link to game's GiantBomb page</a>";
+                        var aElem = document.createElement("a");
+                        aElem.setAttribute("href", allGames[i].site_detail_url);
+                        aElem.innerHTML = "Link to game's GiantBomb page";
+                        myContent.appendChild(aElem);
                     }
 
                     var myButton = document.createElement("input");
                     myButton.type = "button";
                     myButton.value = "Find a Let's Play!";
+
+                    pElem = document.createElement("p");
+                    pElem.appendChild(myButton);
+
+                    myContent.appendChild(pElem);
+
                     myButton.onclick = getData2.bind(allGames[i]);
 
-                    var myForm = document.createElement("form");
-                    myForm.appendChild(myButton);
-
-                    myContent.appendChild(myForm);
-
-                    myContent.innerHTML += "<hr />";
+                    myContent.appendChild(document.createElement("hr"));
                 }
-                // concatenate HTML to bigString as necessary
-                
-                
-                //document.querySelector("#content").innerHTML = bigString;
             }
 
             function ytSearch(obj){
+                console.dir(obj);
+                console.log("obj = " + obj);
+                console.log("obj stringified = " + JSON.stringify(obj));
 
+                var myContent = document.querySelector("#content");
+                myContent.innerHTML = "";
+
+                // TODO: How do you detect if the Youtube Data API has thrown an error?
+                // if there's an error, print a message and return
+                /*if(obj.status_code != 200){
+                    var status = obj.status_code;
+                    var error = obj.error;
+                    document.querySelector("#content").innerHTML = "<h3><b>Error!</b></h3>" + "<p><i>" + status + "</i><p>" + "<p><i>" + error + "</i><p>";
+                    return; // Bail out
+                }*/
+                
+                // if there are no results, print a message and return
+                if(obj.items.length == 0){
+                    var status = "No results found";
+                    myContent.innerHTML = "<p><i>" + status + "</i><p>" + "<p><i>";
+                    return; // Bail out
+                }
+
+                // This is where the fun begins
+                var allVideos = obj.items;
+
+                var pElem = document.createElement("p");
+                var bElem = document.createElement("b");
+
+                bElem.innerHTML = obj.pageInfo.resultsPerPage + " out of " + obj.pageInfo.totalResults + " results for '" + decodeURI(value) + "'";
+
+                pElem.appendChild(bElem);
+                myContent.appendChild(pElem);
+
+                myContent.appendChild(document.createElement("hr"));
+
+                for(var i = 0; i < allVideos.length; i++){
+                    pElem = document.createElement("p");
+                    bElem = document.createElement("b");
+
+                    if(allVideos[i].snippet.title != null){
+                        bElem.innerHTML = allVideos[i].snippet.title;
+                    }
+                    else{
+                        bElem.innerHTML = "Error: Title not found";
+                    }
+
+                    pElem.appendChild(bElem);
+                    myContent.appendChild(pElem);
+
+                    if(allVideos[i].snippet.thumbnails.high != null && allVideos[i].id.videoId != null){
+                        var aElem = document.createElement("a");
+
+                        var imgElem = document.createElement("img");
+                        imgElem.setAttribute("src", allVideos[i].snippet.thumbnails.high.url);
+
+                        aElem.appendChild(imgElem);
+                        aElem.setAttribute("href", "https://www.youtube.com/watch?v=" + allVideos[i].id.videoId);
+
+                        myContent.appendChild(aElem);
+                    }
+
+                    if(allVideos[i].snippet.channelTitle != null && allVideos[i].snippet.channelId != null){
+                        pElem = document.createElement("p");
+                        var aElem = document.createElement("a");
+                        aElem.innerHTML = allVideos[i].snippet.channelTitle;
+                        aElem.setAttribute("href", "https://www.youtube.com/channel/" + allVideos[i].snippet.channelId);
+
+                        pElem.appendChild(aElem);
+                        myContent.appendChild(pElem);
+                    }
+
+                    myContent.appendChild(document.createElement("hr"));
+                }
             }
 
             // Pass in a string, and this will blindly parse out a date!
