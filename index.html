@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <title>Project 3</title>
+        <style>
+            body
+            {
+                text-align: center;
+            }
+
+            h1
+            {
+                font-size: 64pt;
+            }
+        </style>
+
+        <!-- Import jQuery -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+
+        <script>
+
+            var GB_URL = "https://www.giantbomb.com/api/search/?json_callback=gbSearch&format=jsonp&api_key=";
+            var GB_KEY = "f57d683377deb02159063a9618aaef708731316e";
+
+            var YT_URL = "https://www.googleapis.com/youtube/v3/search/?callback=ytSearch&part=snippet&key=";
+            var YT_KEY = "AIzaSyDrxICMCNru0ijt36QbU0fHkQ7AuVzfwOY";
+
+            var value;
+            window.onload = init;
+            
+            function init(){
+                document.querySelector("#search").onclick = getData;
+            }
+            
+            // MY FUNCTIONS
+            function getData(){
+                // build up our URL string
+                var url = GB_URL;
+                url += GB_KEY;
+
+                value = document.querySelector("#searchterm").value;
+                
+                // get rid of any leading and trailing spaces
+                value = value.trim();
+                
+                // if there's no band to search then bail out of the function
+                if(value.length < 1) return;
+                
+                //document.querySelector("#dynamicContent").innerHTML = "<b>Searching for " + value + "</b>";
+                
+                // replace spaces the user typed in the middle of the term with %20
+                // %20 is the hexadecimal value for a space
+                value = encodeURI(value); 
+                
+                // finally, add the artist name to the end of the string
+                url += "&query=" + value;
+                
+                // call the web service, and download the file
+                console.log("loading " + url);
+                $.ajax({
+                dataType: "jsonp",
+                url: url,
+                data: null,
+                success: gbSearch
+                });
+            }
+            
+            function getData2(){
+                // build up our URL string
+                debugger;
+                var url = YT_URL;
+                url += YT_KEY;
+
+                //value = document.querySelector("#searchterm").value;
+
+                value = this.name;
+                
+                // get rid of any leading and trailing spaces
+                value = value.trim();
+                
+                // if there's no band to search then bail out of the function
+                if(value.length < 1) return;
+                
+                // replace spaces the user typed in the middle of the term with %20
+                // %20 is the hexadecimal value for a space
+                value = encodeURI(value); 
+                
+                // finally, add the artist name to the end of the string
+                url += "&q=" + value + encodeURI(" Let's Play");
+                
+                // call the web service, and download the file
+                console.log("loading " + url);
+                $.ajax({
+                dataType: "jsonp",
+                url: url,
+                data: null,
+                success: ytSearch
+                });
+            }
+            
+            function gbSearch(obj){
+                console.dir(obj);
+                console.log("obj = " + obj);
+                console.log("obj stringified = " + JSON.stringify(obj));
+
+                document.querySelector("#content").innerHTML = "";
+                
+                // if there's an error, print a message and return
+                if(obj.status_code != 1){
+                    var status = obj.status_code;
+                    var error = obj.error;
+                    document.querySelector("#content").innerHTML = "<h3><b>Error!</b></h3>" + "<p><i>" + status + "</i><p>" + "<p><i>" + error + "</i><p>";
+                    return; // Bail out
+                }
+                
+                // if there are no results, print a message and return
+                if(obj.results.length == 0){
+                    var status = "No results found";
+                    document.querySelector("#content").innerHTML = "<p><i>" + status + "</i><p>" + "<p><i>";
+                    return; // Bail out
+                }
+                
+                // TODO
+                // if there is only one result, Eventful returns an object instead of an array
+                // create an array with the single object
+                
+                // If there is an array of results, loop through them
+                var allGames = obj.results;
+                console.log("allGames.length = " + allGames.length);
+
+                var myContent = document.querySelector("#content");
+
+                myContent.innerHTML = "<p><b>" + obj.number_of_page_results + " out of " + obj.number_of_total_results + " results for '" + decodeURI(value) + "'</b></p>";
+                myContent.innerHTML += "<hr />";
+                
+                // loop through events here
+                for(var i = 0; i < allGames.length; i++){
+                    if(allGames[i].resource_type != "game"){
+                        continue;
+                    }
+
+                    if(allGames[i].name != null){
+                        myContent.innerHTML += "<p><b>" + allGames[i].name + "</b></p>";
+                    }
+                    else{
+                        myContent.innerHTML += "<p><b>Something</b></p>";
+                    }
+
+                    if(allGames[i].image != null){
+                        myContent.innerHTML += "<img src='" + allGames[i].image.thumb_url + "' />";
+                    }
+
+                    if(allGames[i].deck != null){
+                        myContent.innerHTML += "<p>" + allGames[i].deck + "</p>";
+                    }
+
+                    if(allGames[i].developers != null){
+                        myContent.innerHTML += "<p><b>Developed by ";
+
+                        for(var j = 0; j < allGames[i].developers.length; j++){
+                            if(j == allGames[i].developers.length - 1){
+                                myContent.innerHTML += "and ";
+                            }
+
+                            myContent.innerHTML += allGames[i].developers[j];
+
+                            if(j != allGames[i].developers.length - 1){
+                                myContent.innerHTML += ", ";
+                            }
+                        }
+
+                        myContent.innerHTML += "</b></p>";
+                    }
+                    else{
+                        myContent.innerHTML += "<p><b>Developed by some team</b></p>";
+                    }
+
+                    if(allGames[i].original_release_date != null){
+                        myContent.innerHTML += "<p><b>Released on " + parseDate(allGames[i].original_release_date) + "</b></p>";
+                    }
+                    else{
+                        myContent.innerHTML += "<p><b>Released on some date</b></p>";
+                    }
+
+                    if(allGames[i].site_detail_url != null){
+                        myContent.innerHTML += "<a href='" + allGames[i].site_detail_url + "'>Link to game's GiantBomb page</a>";
+                    }
+
+                    var myButton = document.createElement("input");
+                    myButton.type = "button";
+                    myButton.value = "Find a Let's Play!";
+                    myButton.onclick = getData2.bind(allGames[i]);
+
+                    var myForm = document.createElement("form");
+                    myForm.appendChild(myButton);
+
+                    myContent.appendChild(myForm);
+
+                    myContent.innerHTML += "<hr />";
+                }
+                // concatenate HTML to bigString as necessary
+                
+                
+                //document.querySelector("#content").innerHTML = bigString;
+            }
+
+            function ytSearch(obj){
+
+            }
+
+            // Pass in a string, and this will blindly parse out a date!
+            function parseDate(date){
+                // FORMAT: Year-Month-Day HH:MM:SS (24h)
+
+                // Splits date into the date and time
+                var myValues = date.split(" ");
+                
+                // Splits date into year, month, and day
+                myValues[0] = myValues[0].split("-");
+
+                // Splits time into hour, minute, and second
+                myValues[1] = myValues[1].split(":");
+
+                // Begin parsing!
+                var myString = "";
+
+                // First, the date
+                // Figure out the month!
+                switch(Number(myValues[0][1])){
+                    case 1:
+                        myString += "January ";
+                        break;
+                    
+                    case 2:
+                        myString += "February ";
+                        break;
+
+                    case 3:
+                        myString += "March ";
+                        break;
+
+                    case 4:
+                        myString += "April ";
+                        break;
+
+                    case 5:
+                        myString += "May ";
+                        break;
+
+                    case 6:
+                        myString += "June ";
+                        break;
+
+                    case 7:
+                        myString += "July ";
+                        break;
+
+                    case 8:
+                        myString += "August ";
+                        break;
+
+                    case 9:
+                        myString += "September ";
+                        break;
+
+                    case 10:
+                        myString += "October ";
+                        break;
+
+                    case 11:
+                        myString += "November ";
+                        break;
+
+                    case 12:
+                        myString += "December ";
+                        break;
+                }
+
+                // Figure out which postfix to put on the day!
+                myString += Number(myValues[0][2]);
+                if(myValues[0][2] == "01" || myValues[0][2] == "21" || myValues[0][2] == "31"){
+                    myString += "st, ";
+                }
+                else if(myValues[0][2] == "02" || myValues[0][2] == "22"){
+                    myString += "nd, ";
+                }
+                else if(myValues[0][2] == "03" || myValues[0][2] == "23"){
+                    myString += "rd, ";
+                }
+                else{
+                    myString += "th, ";
+                }
+
+                // Then, add the year.
+                myString += myValues[0][0];
+
+                return myString;
+            }
+
+        </script>
+    </head>
+
+    <body>
+        <h1>Let's Play Finder</h1>
+
+        <h2>What game do you want to watch?</h2>
+        <form>
+            <input type="text" id="searchterm" placeholder="Search for a game" />
+            <input type="button" id="search" value="Search!" />
+        </form>
+
+        <div id="content"></div>
+    </body>
+
+</html>
