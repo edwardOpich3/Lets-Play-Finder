@@ -27,6 +27,7 @@
                 animation: loadSpin 1s linear infinite;
             }
 
+            /* Spinning animation for loading spinner */
             @keyframes loadSpin
             {
                 100% { transform: rotate(-360deg); }
@@ -39,23 +40,30 @@
         <script>
             "use strict";
 
+            // url and api key for GiantBomb
             var GB_URL = "https://www.giantbomb.com/api/search/?json_callback=gbSearch&format=jsonp&api_key=";
             var GB_KEY = "f57d683377deb02159063a9618aaef708731316e";
 
+            // url and api key for Youtube
             var YT_URL = "https://www.googleapis.com/youtube/v3/search/?callback=ytSearch&part=snippet&type=video&key=";
             var YT_KEY = "AIzaSyDrxICMCNru0ijt36QbU0fHkQ7AuVzfwOY";
 
+            // Current search values
             var gbValue;
             var ytValue;
 
+            // Loading spinner
             var loadingImg;
 
+            // The HTML content divs
             var gbContent;
             var ytContent;
             
+            // Current page ids
             var gbPage;
             var ytPage;
 
+            // Previous and Next page links, and number of current page for Youtube
             var ytNextPage;
             var ytPrevPage;
             var ytPageNum;
@@ -80,7 +88,10 @@
             // MY FUNCTIONS
             function getData(){
                 // If gbValue is equal to the search term, we already have the search loaded; don't bother!
-                if(decodeURI(gbValue) == document.querySelector("#searchterm").value && this.value != "Next Page" && this.value != "Previous Page"){
+                // Unless we're navigating pages, or aren't on the first page
+                if(decodeURI(gbValue) == document.querySelector("#searchterm").value
+                    && this.value != "Next Page" && this.value != "Previous Page"
+                    && gbPage == 1){
                     ytContent.style.display = "none";
                     gbContent.style.display = "block";
                     return;
@@ -100,36 +111,45 @@
                 var url = GB_URL;
                 url += GB_KEY;
 
-                gbValue = document.querySelector("#searchterm").value;
+                if(this.value != "Next Page" && this.value != "Previous Page"){
+                    gbValue = document.querySelector("#searchterm").value;
+                }
+                else{
+                    document.querySelector("#searchterm").value = decodeURI(gbValue);
+                    gbValue = decodeURI(gbValue);
+                }
                 
                 // get rid of any leading and trailing spaces
                 gbValue = gbValue.trim();
                 
-                // if there's no band to search then bail out of the function
-                if(gbValue.length < 1) return;
-                
-                //document.querySelector("#dynamicContent").innerHTML = "<b>Searching for " + gbValue + "</b>";
+                // If there's no info to search then don't bother!
+                if(gbValue.length < 1){
+                    loadingImg.style.display = "none";
+                    return;
+                }
                 
                 // replace spaces the user typed in the middle of the term with %20
-                // %20 is the hexadecimal value for a space
                 gbValue = encodeURI(gbValue); 
                 
-                // finally, add the artist name to the end of the string
+                // Add the user's parsed query
                 url += "&query=" + gbValue;
 
+                // Ensure all of our results are games
                 url += "&resources=game";
 
+                // Add our page id
                 url += "&page=" + gbPage;
                 
-                // call the web service, and download the file
                 //console.log("loading " + url);
 
-                // Thanks JQuery! http://jquery.com/
+                // Call the web service, and download the file
+                // Thanks, JQuery! http://jquery.com/
                 $.ajax({
                 dataType: "jsonp",
                 url: url,
                 data: null,
-                success: gbSearch
+                success: gbSearch,
+                error: errorHandler
                 });
             }
             
@@ -155,8 +175,6 @@
                 var url = YT_URL;
                 url += YT_KEY;
 
-                //ytValue = document.querySelector("#searchterm").value;
-
                 if(this.value != "Next Page" && this.value != "Previous Page"){
                     ytValue = this.name;
                 }
@@ -164,38 +182,58 @@
                 // get rid of any leading and trailing spaces
                 ytValue = ytValue.trim();
                 
-                // if there's no band to search then bail out of the function
-                if(ytValue.length < 1) return;
+                // In the unlikely case there isn't a video to search, bail out!
+                if(ytValue.length < 1){
+                    loadingImg.style.display = "none";
+                    ytContent.style.display = "block";
+                    ytContent.innerHTML = "<p><i>Error: Youtube query is empty</i></p>";
+
+                    var aElem = document.createElement("a");
+                    aElem.innerHTML = "Back to Game Search Results";
+                    aElem.setAttribute("href", "#");
+                    aElem.onclick = function(){
+                        document.querySelector("#searchterm").value = decodeURI(gbValue);
+                        document.querySelector("#gbContent").style.display = "block";
+                        ytContent.style.display = "none";
+                    };
+
+                    return;
+                }
                 
-                // finally, add the artist name to the end of the string
+                // Begin parsing the query
                 url += "&q=";
 
+                // Due to the way youtube likes to handle spaces, we need to split by space!
                 var splitValue = ytValue.split(" ");
                 for(var i = 0; i < splitValue.length; i++){
+                    // Handle the case of an ampersand, since those don't get parsed correctly
                     if(splitValue[i] == "&"){
                         url += "%26+";
                         continue;
                     }
 
+                    // Replace any spaces with a '+'!
                     url += encodeURI(splitValue[i]) + "+";
                 }
 
                 url += "Let's+Play";
 
+                // Add the current page token
                 url += "&pageToken=" + ytPage;
                 
-                // call the web service, and download the file
                 //console.log("loading " + url);
 
-                // Thanks JQuery! http://jquery.com/
+                // call the web service, and download the file
+                // Thanks, JQuery! http://jquery.com/
                 $.ajax({
                 dataType: "jsonp",
                 url: url,
                 data: null,
-                success: ytSearch
+                success: ytSearch,
+                error: errorHandler
                 });
             }
-            
+
             function gbSearch(obj){
                // console.dir(obj);
                // console.log("obj = " + obj);
@@ -203,7 +241,7 @@
 
                 gbContent.innerHTML = "";
                 
-                // if there's an error, print a message and return
+                // If there's an error, print a message and return
                 if(obj.status_code != 1){
                     var status = obj.status_code;
                     var error = obj.error;
@@ -211,22 +249,19 @@
                     return; // Bail out
                 }
                 
-                // if there are no results, print a message and return
+                // If there are no results, print a message and return
                 if(obj.results.length == 0){
                     var status = "No results found";
+                    //console.dir(obj);
                     gbContent.innerHTML = "<p><i>" + status + "</i><p>" + "<p><i>";
                     loadingImg.style.display = "none";
                     gbContent.style.display = "block";
                     return; // Bail out
                 }
                 
-                // TODO
-                // if there is only one result, Eventful returns an object instead of an array
-                // create an array with the single object
-                
                 // If there is an array of results, loop through them
                 var allGames = obj.results;
-              //  console.log("allGames.length = " + allGames.length);
+                //console.log("allGames.length = " + allGames.length);
 
                 var pElem = document.createElement("p");
                 var bElem = document.createElement("b");
@@ -241,8 +276,9 @@
 
                 gbContent.appendChild(document.createElement("hr"));
                 
-                // loop through events here
+                // loop through games here
                 for(var i = 0; i < allGames.length; i++){
+                    // Don't bother if it's not a game, though it always should be
                     if(allGames[i].resource_type != "game"){
                         continue;
                     }
@@ -250,6 +286,7 @@
                     pElem = document.createElement("p");
                     bElem = document.createElement("b");
 
+                    // Display the game's name!
                     if(allGames[i].name != null){
                         bElem.innerHTML = allGames[i].name;
                     }
@@ -260,52 +297,32 @@
                     pElem.appendChild(bElem);
                     gbContent.appendChild(pElem);
 
+                    // If the game has an image, display it!
                     if(allGames[i].image != null){
                         var imgElem = document.createElement("img");
                         imgElem.setAttribute("src", allGames[i].image.thumb_url);
                         gbContent.appendChild(imgElem);
                     }
 
+                    // If the game has a short description, display it!
                     if(allGames[i].deck != null){
                         pElem = document.createElement("p");
                         pElem.innerHTML += allGames[i].deck;
                         gbContent.appendChild(pElem);
                     }
 
-                    /*if(allGames[i].developers != null){
-                        gbContent.innerHTML += "<p><b>Developed by ";
-
-                        for(var j = 0; j < allGames[i].developers.length; j++){
-                            if(j == allGames[i].developers.length - 1){
-                                gbContent.innerHTML += "and ";
-                            }
-
-                            gbContent.innerHTML += allGames[i].developers[j];
-
-                            if(j != allGames[i].developers.length - 1){
-                                gbContent.innerHTML += ", ";
-                            }
-                        }
-
-                        gbContent.innerHTML += "</b></p>";
-                    }
-                    else{
-                        gbContent.innerHTML += "<p><b>Developed by some team</b></p>";
-                    }*/
-
                     pElem = document.createElement("p");
                     bElem = document.createElement("b");
 
+                    // If the game has been released and has a date, display it!
                     if(allGames[i].original_release_date != null){
                         bElem.innerHTML += "Released on " + parseDate(allGames[i].original_release_date);
                     }
-                    /*else{
-                        gbContent.innerHTML += "<p><b>Released on some date</b></p>";
-                    }*/
 
                     pElem.appendChild(bElem);
                     gbContent.appendChild(pElem);
 
+                    // Link to the GiantBomb page, if it's available!
                     if(allGames[i].site_detail_url != null){
                         var aElem = document.createElement("a");
                         aElem.setAttribute("href", allGames[i].site_detail_url);
@@ -313,6 +330,7 @@
                         gbContent.appendChild(aElem);
                     }
 
+                    // Make the 'Find a let's play' button!
                     var myButton = document.createElement("input");
                     myButton.type = "button";
                     myButton.value = "Find a Let's Play!";
@@ -327,11 +345,12 @@
                     gbContent.appendChild(document.createElement("hr"));
                 }
 
+                // Define buttons to traverse pages!
                 pElem = document.createElement("p");
                 var myPrevButton;
                 var myNextButton;
 
-                if(gbPage > 0){
+                if(gbPage > 1){
                     myPrevButton = document.createElement("input");
                     myPrevButton.type = "button";
                     myPrevButton.value = "Previous Page";
@@ -339,7 +358,7 @@
                     pElem.appendChild(myPrevButton);
                 }
 
-                if(obj.number_of_page_results < obj.number_of_total_results){
+                if(gbPage * obj.limit < obj.number_of_total_results){
                     myNextButton = document.createElement("input");
                     myNextButton.type = "button";
                     myNextButton.value = "Next Page";
@@ -370,20 +389,15 @@
             }
 
             function ytSearch(obj){
-              //  console.dir(obj);
-               // console.log("obj = " + obj);
-              //  console.log("obj stringified = " + JSON.stringify(obj));
-
                 ytContent.innerHTML = "";
 
-                // TODO: How do you detect if the Youtube Data API has thrown an error?
-                // if there's an error, print a message and return
-                /*if(obj.status_code != 200){
-                    var status = obj.status_code;
-                    var error = obj.error;
+                // If there's an error, print a message and return
+                if(obj.error != undefined){
+                    var status = obj.code;
+                    var error = obj.message;
                     document.querySelector("#content").innerHTML = "<h3><b>Error!</b></h3>" + "<p><i>" + status + "</i><p>" + "<p><i>" + error + "</i><p>";
                     return; // Bail out
-                }*/
+                }
                 
                 // if there are no results, print a message and return
                 if(obj.items.length == 0){
@@ -505,6 +519,18 @@
 
                 loadingImg.style.display = "none";
                 ytContent.style.display = "block";
+            }
+
+            // Handles errors in the ajax calls
+            function errorHandler(obj){
+                if(obj.status == 200){
+                    return;
+                }
+
+                loadingImg.style.display = "none";
+                gbContent.style.display = "block";
+
+                gbContent.innerHTML = "<p><i>Error " + obj.status + ": " + obj.statusText + "</i></p>";
             }
 
             // Pass in a string, and this will blindly parse out a date!
